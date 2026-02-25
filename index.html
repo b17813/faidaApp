@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FaidaApp | Enterprise Ledger</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563EB">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+       }
+  </script>
+    <style>
+        :root {
+            --slope-start: #0F172A;
+            --slope-mid: #2563EB;
+            --slope-end: #38BDF8;
+            --white: #FFFFFF;
+            --bg: #F8FAFC;
+            --text-main: #1E293B;
+            --text-muted: #64748B;
+            --success: #10B981;
+            --danger: #EF4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; letter-spacing: -0.02em; }
+        body { background-color: var(--bg); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        .slope-gradient { background: linear-gradient(135deg, var(--slope-start) 0%, var(--slope-mid) 50%, var(--slope-end) 100%); }
+
+        /* Auth Screen */
+        #authScreen { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; transition: 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .auth-container { width: 85%; max-width: 380px; }
+        .auth-card { background: white; padding: 30px; border-radius: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
+
+        /* Header Layout */
+        .app-header {
+            height: 25vh; min-height: 180px; border-bottom-left-radius: 40px; border-bottom-right-radius: 40px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; position: relative; z-index: 10;
+        }
+
+        .shop-id-container {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.1); padding: 5px 15px; border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .shop-circle {
+            width: 24px; height: 24px; background: white; color: var(--slope-mid);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 900;
+        }
+
+        .balance-val { font-size: 3.2rem; font-weight: 800; letter-spacing: -2px; line-height: 1; }
+        .balance-lbl { font-size: 10px; font-weight: 500; opacity: 0.7; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Action Bar */
+        .sticky-controls { padding: 0 25px; margin-top: -30px; z-index: 100; position: relative; }
+        .action-card { 
+            display: flex; gap: 1px; background: #E2E8F0; 
+            padding: 1px; border-radius: 20px; overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+        .btn-action {
+            flex: 1; height: 60px; border: none; background: white;
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--text-main);
+        }
+        .btn-action:active { background: #F8FAFC; }
+
+        /* Transaction List Area */
+        .transactions-area { flex: 1; overflow-y: auto; padding: 25px 20px; scrollbar-width: none; }
+        .transactions-area::-webkit-scrollbar { display: none; }
+
+        .tx-card {
+            background: var(--white); padding: 16px; border-radius: 20px;
+            margin-bottom: 12px; display: flex; align-items: center;
+            border: 1px solid rgba(0,0,0,0.03);
+        }
+        .tx-status-dot { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: 800; font-size: 14px; }
+        .in-dot { background: #ECFDF5; color: var(--success); }
+        .out-dot { background: #FEF2F2; color: var(--danger); }
+
+        .tx-info { flex: 1; }
+        .tx-info h4 { font-size: 14px; font-weight: 600; color: var(--text-main); }
+        .tx-info p { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        
+        .tx-amt { font-weight: 700; font-size: 15px; margin-right: 15px; }
+
+        .inner-actions { display: flex; gap: 8px; border-left: 1px solid #F1F5F9; padding-left: 12px; }
+        .btn-mini { border: none; background: #F1F5F9; color: var(--text-muted); padding: 8px; border-radius: 10px; font-size: 10px; font-weight: 700; cursor: pointer; }
+
+        /* Modal Sheet */
+        #modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); display: none; align-items: flex-end; z-index: 3000; }
+        .modal-sheet { background: white; width: 100%; border-top-left-radius: 35px; border-top-right-radius: 35px; padding: 40px 25px; transform: translateY(100%); transition: 0.3s ease-out; }
+        #modal.active .modal-sheet { transform: translateY(0); }
+        .modal-input { width: 100%; background: #F1F5F9; border: 1.5px solid transparent; padding: 16px; border-radius: 14px; margin-bottom: 12px; outline: none; font-weight: 600; }
+        .btn-save-final { width: 100%; padding: 18px; border-radius: 14px; border: none; color: white; font-weight: 700; font-size: 15px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="authScreen" class="slope-gradient">
+        <div class="auth-container">
+            <div style="text-align: center; margin-bottom: 40px;">
+                <h1 style="color:white; font-size: 3.5rem; font-weight: 900; letter-spacing: -4px;">FaidaApp.</h1>
+                <p id="authSubtext" style="color: white; opacity: 0.6; font-size: 13px;">Enterprise Ledger System</p>
+            </div>
+            <div class="auth-card">
+                <input type="text" id="u" class="modal-input" placeholder="Shop Name">
+                <input type="password" id="p" class="modal-input" placeholder="Security PIN">
+                <button class="btn-save-final slope-gradient" id="authBtn" onclick="handleAuth()">Sign In</button>
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <p id="toggleText" style="font-size: 12px; color: var(--text-muted); cursor: pointer; font-weight: 700;" onclick="toggleAuthMode()">
+                        Don't have a shop? <span style="color: var(--slope-mid);">Create Account</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-header slope-gradient">
+        <div class="shop-id-container">
+            <div class="shop-circle" id="shopInitial">F</div>
+            <span id="shopNameDisplay">OFFLINE</span>
+        </div>
+        <div class="balance-val" id="totalBalance">0</div>
+        <div class="balance-lbl">Available Capital (TZS)</div>
+        <div style="position: absolute; top: 40px; right: 25px; font-size: 11px; font-weight: 800; cursor: pointer; opacity: 0.6;" onclick="logout()">LOGOUT</div>
+    </div>
+
+    <div class="sticky-controls">
+        <div class="action-card">
+            <button class="btn-action" onclick="openForm('Sale')">
+                <span style="color: var(--success); font-size: 18px;">●</span> INCOME
+            </button>
+            <button class="btn-action" onclick="openForm('Purchase')">
+                <span style="color: var(--danger); font-size: 18px;">●</span> EXPENSE
+            </button>
+        </div>
+    </div>
+
+    <div class="transactions-area">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div style="font-size: 10px; color: var(--text-muted); font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">Audit Trail</div>
+            <button onclick="toggleView()" id="viewAllBtn" style="border:none; background:none; color:var(--slope-mid); font-weight:800; font-size:11px; cursor:pointer;">VIEW ALL</button>
+        </div>
+        <div id="list" style="padding-bottom: 50px;"></div>
+    </div>
+
+    <div id="modal">
+        <div class="modal-sheet">
+            <h2 id="modalTitle" style="margin-bottom: 25px; font-weight: 800; font-size: 22px;">Entry Details</h2>
+            <input type="hidden" id="editId">
+            <input type="text" id="note" class="modal-input" placeholder="Description">
+            <div style="display: flex; gap: 12px;">
+                <input type="number" id="qty" class="modal-input" placeholder="Qty">
+                <input type="number" id="price" class="modal-input" placeholder="Price">
+            </div>
+            <button class="btn-save-final slope-gradient" onclick="save()">COMMIT TRANSACTION</button>
+            <button onclick="closeForm()" style="width:100%; border:none; background:none; margin-top:20px; color: var(--text-muted); font-weight: 700; font-size: 12px;">DISCARD</button>
+        </div>
+    </div>
+
+<script>
+    const API = 'api.php';
+    let isFullView = false, currentType = '', isRegisterMode = false;
+
+    window.onload = () => { if(localStorage.getItem('userId')) showDashboard(); }
+
+    // Toggle kati ya Login na Register
+    function toggleAuthMode() {
+        isRegisterMode = !isRegisterMode;
+        const btn = document.getElementById('authBtn');
+        const toggleText = document.getElementById('toggleText');
+        const subtext = document.getElementById('authSubtext');
+
+        if (isRegisterMode) {
+            btn.innerText = "Register Shop";
+            subtext.innerText = "Register your business to start";
+            toggleText.innerHTML = "Already have a shop? <span style='color: var(--slope-mid);'>Login here</span>";
+        } else {
+            btn.innerText = "Sign In";
+            subtext.innerText = "Enterprise Ledger System";
+            toggleText.innerHTML = "Don't have a shop? <span style='color: var(--slope-mid);'>Create Account</span>";
+        }
+    }
+
+    // Handle Authentication (Login/Register)
+    async function handleAuth() {
+        const type = isRegisterMode ? 'register' : 'login';
+        const u = document.getElementById('u').value, p = document.getElementById('p').value;
+        if (!u || !p) return alert("Please fill all fields");
+
+        const fd = new FormData(); fd.append('username', u); fd.append('password', p);
+        const res = await fetch(`${API}?action=${type}`, { method: 'POST', body: fd }).then(r => r.json());
+        
+        if(res.status === 'success') {
+            localStorage.setItem('userId', res.user_id);
+            localStorage.setItem('username', res.username);
+            showDashboard();
+        } else { alert(res.message || "Authentication Failed"); }
+    }
+
+    function showDashboard() {
+        document.getElementById('authScreen').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('authScreen').style.display = 'none';
+            const name = localStorage.getItem('username');
+            document.getElementById('shopNameDisplay').innerText = name.toUpperCase();
+            document.getElementById('shopInitial').innerText = name.charAt(0).toUpperCase();
+            render();
+        }, 500);
+    }
+
+    async function render() {
+        const uid = localStorage.getItem('userId');
+        const data = await fetch(`${API}?action=fetch&user_id=${uid}`).then(r => r.json());
+        let total = 0;
+        const displayData = isFullView ? data : data.slice(0, 10);
+        
+        document.getElementById('list').innerHTML = displayData.map(tx => {
+            const isSale = tx.type === 'Sale';
+            return `
+                <div class="tx-card">
+                    <div class="tx-status-dot ${isSale ? 'in-dot' : 'out-dot'}">${isSale ? 'IN' : 'OUT'}</div>
+                    <div class="tx-info">
+                        <h4>${tx.note}</h4>
+                        <p>${tx.qty} units × ${parseInt(tx.price).toLocaleString()}</p>
+                    </div>
+                    <div class="tx-amt" style="color: ${isSale ? 'var(--success)' : 'var(--text-main)'}">
+                        ${isSale ? '+' : '-'}${(tx.qty * tx.price).toLocaleString()}
+                    </div>
+                    <div class="inner-actions">
+                        <button class="btn-mini" onclick='editEntry(${JSON.stringify(tx)})'>EDIT</button>
+                        <button class="btn-mini" onclick='remove(${tx.id})'>DEL</button>
+                    </div>
+                </div>`;
+        }).join('');
+
+        data.forEach(tx => { total += (tx.type === 'Sale' ? tx.qty * tx.price : -(tx.qty * tx.price)); });
+        document.getElementById('totalBalance').innerText = total.toLocaleString();
+    }
+
+    function toggleView() { isFullView = !isFullView; document.getElementById('viewAllBtn').innerText = isFullView ? 'SHOW RECENT' : 'VIEW ALL'; render(); }
+    function openForm(type, d = null) {
+        currentType = type;
+        document.getElementById('modalTitle').innerText = (d ? "Modify " : "New ") + type;
+        document.getElementById('editId').value = d ? d.id : '';
+        document.getElementById('note').value = d ? d.note : '';
+        document.getElementById('qty').value = d ? d.qty : '';
+        document.getElementById('price').value = d ? d.price : '';
+        document.getElementById('modal').style.display = 'flex';
+        setTimeout(() => document.getElementById('modal').classList.add('active'), 10);
+    }
+    function closeForm() { document.getElementById('modal').classList.remove('active'); setTimeout(() => document.getElementById('modal').style.display = 'none', 300); }
+    function editEntry(d) { openForm(d.type, d); }
+    async function save() {
+        const fd = new FormData();
+        fd.append('user_id', localStorage.getItem('userId'));
+        fd.append('id', document.getElementById('editId').value);
+        fd.append('type', currentType);
+        fd.append('note', document.getElementById('note').value);
+        fd.append('qty', document.getElementById('qty').value);
+        fd.append('price', document.getElementById('price').value);
+        await fetch(`${API}?action=save`, { method: 'POST', body: fd });
+        closeForm(); render();
+    }
+    async function remove(id) {
+        if(!confirm("Delete forever?")) return;
+        await fetch(`${API}?action=delete&id=${id}`);
+        render();
+    }
+    function logout() { localStorage.clear(); location.reload(); }
+</script>
+</body>
+</html>
